@@ -8,7 +8,7 @@ Each official model received the same prompt in a new conversation, had only one
 
 ## Play the Games
 
-### [Click here to open the game hub](https://andronov5.github.io/ai-platformer-showdown/)
+### [Click here to open the game hub](https://lerabyte.github.io/ai-platformer-showdown/)
 
 The game hub contains all four platformers. Select **Play** underneath any game to launch it in your browser.
 
