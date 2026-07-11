@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Cyber-Run</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background: #060613;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    user-select: none;
+  }
+  #gameContainer {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+    border: 2px solid #00ffff;
+    background: #09091e;
+    border-radius: 4px;
+  }
+  canvas {
+    display: block;
+    background: #09091e;
+  }
+  .screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(6, 6, 19, 0.9);
+    backdrop-filter: blur(5px);
+    z-index: 10;
+    text-align: center;
+    transition: opacity 0.3s ease;
+  }
+  .hidden {
+    display: none !important;
+    opacity: 0;
+  }
+  h1 {
+    font-size: 3.5rem;
+    margin: 0 0 10px 0;
+    color: #00ffff;
+    text-shadow: 0 0 10px #00ffff, 0 0 20px #0088ff;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+  }
+  p {
+    font-size: 1.2rem;
+    margin: 5px 0 25px 0;
+    color: #ff00ff;
+    text-shadow: 0 0 8px #ff00ff;
+    letter-spacing: 1px;
+  }
+  .instructions {
+    margin-bottom: 30px;
+    font-size: 0.95rem;
+    color: #a4a4d6;
+    max-width: 550px;
+    line-height: 1.6;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 20px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    text-align: left;
+  }
+  .instructions strong {
+    color: #00ffff;
+    display: block;
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+  }
+  button {
+    padding: 12px 35px;
+    font-size: 1.1rem;
+    background: transparent;
+    border: 2px solid #00ffff;
+    color: #00ffff;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 2px;
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.2);
+    transition: all 0.25s ease-on-out;
+  }
+  button:hover {
+    background: #00ffff;
+    color: #060613;
+    box-shadow: 0 0 25px #00ffff;
+  }
+  #ui {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    right: 15px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.25rem;
+    font-weight: bold;
+    z-index: 5;
+  }
+  .ui-item {
+    background: rgba(6, 6, 19, 0.75);
+    padding: 6px 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 255, 255, 0.25);
+  }
+  .ui-health { color: #ff0055; text-shadow: 0 0 5px #ff0055; }
+  .ui-score { color: #ffff00; text-shadow: 0 0 5px #ffff00; }
+  .ui-level { color: #00ffaa; text-shadow: 0 0 5px #00ffaa; }
+</style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <div id="ui">
+    <div class="ui-item ui-health" id="healthDisplay">HEALTH: ❤️ ❤️ ❤️</div>
+    <div class="ui-item ui-score" id="scoreDisplay">SCORE: 0000</div>
+    <div class="ui-item ui-level" id="levelDisplay">SECTOR: 1</div>
+  </div>
+
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <div id="titleScreen" class="screen">
+    <h1>Neon Cyber-Run</h1>
+    <p>Escape the mainframe before system overwrite</p>
+    <div class="instructions">
+      <strong>Grid Navigation Directives:</strong>
+      • Left / Right Movement: <b>A / D</b> or <b>Left / Right Arrow Keys</b><br>
+      • Jump / Elevation: <b>W</b>, <b>Up Arrow Key</b>, or <b>Spacebar</b><br>
+      • Eliminate hostile nodes (Green Blocks) by stomping on their apex.<br>
+      • Interface with core data matrices (Yellow Cubes) for extra points.<br>
+      • Reach the Neon Extraction Gateway (Purple Void Portal) to sync sectors.
+    </div>
+    <button onclick="pressStart()">Initialize Core</button>
+  </div>
+
+  <div id="levelCompleteScreen" class="screen hidden">
+    <h1>Sector Synchronized</h1>
+    <p>Encryption broken. Ready for next data layer.</p>
+    <button onclick="triggerNextLevel()">Load Next Sector</button>
+  </div>
+
+  <div id="gameOverScreen" class="screen hidden">
+    <h1>System Override</h1>
+    <p>Your signature dissolved into the digital noise.</p>
+    <div style="display: flex; gap: 20px;">
+      <button onclick="respawnAtCheckpoint()">Resume Signal</button>
+      <button onclick="resetWholeGame()" style="border-color: #ff00ff; color: #ff00ff; box-shadow: 0 0 12px rgba(255,0,255,0.2);">Purge & Reboot</button>
+    </div>
+  </div>
+
+  <div id="gameWinScreen" class="screen hidden">
+    <h1>Mainframe Breached</h1>
+    <p>Absolute control achieved. Digital freedom initialized.</p>
+    <p style="font-size: 1.6rem; color: #ffff00; margin-bottom: 30px;">Final Extraction Record: <span id="finalScore">0</span></p>
+    <button onclick="resetWholeGame()">Re-enter Grid</button>
+  </div>
+</div>
+
+<script>
+// --- AUDIO SYNTHESIS SYSTEM (Web Audio API Engine) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(type) {
+  if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  const now = audioCtx.currentTime;
+
+  if (type === 'jump') {
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(380, now + 0.12);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  } else if (type === 'coin') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, now); // D5
+    osc.frequency.setValueAtTime(880, now + 0.07);    // A5
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  } else if (type === 'hurt') {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.linearRampToValueAtTime(60, now + 0.25);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  } else if (type === 'stomp') {
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.linearRampToValueAtTime(30, now + 0.15);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+    osc.start(now);
+    osc.stop(now + 0.15);
+  } else if (type === 'checkpoint') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(330, now);
+    osc.frequency.exponentialRampToValueAtTime(660, now + 0.25);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  } else if (type === 'win') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, now); // C5
+    osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+    osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+    osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+    osc.start(now);
+    osc.stop(now + 0.5);
+  }
+}
+
+// --- ENGINE VARIABLES & CONFIG ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameState = 'TITLE';
+let currentLevelIdx = 0;
+let score = 0;
+
+let player = {
+  x: 100, y: 400,
+  w: 24, h: 36,
+  vx: 0, vy: 0,
+  speed: 4.8,
+  jumpForce: -12.5,
+  grounded: false,
+  health: 3,
+  maxHealth: 3,
+  invulnerableFrames: 0,
+  facing: 'right'
+};
+
+let camera = { x: 0, y: 0, width: 800, height: 600 };
+let lastCheckpoint = null; // Stores level index and coordinates
+let particles = [];
+
+// --- INPUT HANDLER MAP ---
+const keys = { a: false, d: false, w: false, ArrowLeft: false, ArrowRight: false, ArrowUp: false, Space: false };
+
+window.addEventListener('keydown', e => {
+  let code = e.code;
+  let key = e.key.toLowerCase();
+  if (key === 'a' || code === 'ArrowLeft') keys.a = true;
+  if (key === 'd' || code === 'ArrowRight') keys.d = true;
+  if (key === 'w' || code === 'ArrowUp') keys.w = true;
+  if (code === 'Space') keys.Space = true;
+
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(code)) {
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('keyup', e => {
+  let code = e.code;
+  let key = e.key.toLowerCase();
+  if (key === 'a' || code === 'ArrowLeft') keys.a = false;
+  if (key === 'd' || code === 'ArrowRight') keys.d = false;
+  if (key === 'w' || code === 'ArrowUp') keys.w = false;
+  if (code === 'Space') keys.Space = false;
+});
+
+window.addEventListener('blur', () => {
+  for (let k in keys) keys[k] = false;
+});
+
+// --- PROCEDURAL LEVEL LAYOUT DATA TEMPLATES ---
+const levelTemplates = [
+  {
+    width: 2200,
+    startPos: { x: 100, y: 400 },
+    platforms: [
+      { x: 0, y: 540, w: 650, h: 60 },
+      { x: 250, y: 410, w: 140, h: 20 },
+      { x: 480, y: 310, w: 140, h: 20 },
+      { x: 750, y: 540, w: 600, h: 60 },
+      { x: 850, y: 420, w: 130, h: 20 },
+      { x: 1080, y: 320, w: 150, h: 20 },
+      { x: 1450, y: 540, w: 750, h: 60 },
+      { x: 1550, y: 420, w: 150, h: 20 },
+      { x: 1780, y: 310, w: 150, h: 20 },
+      { x: 1950, y: 210, w: 160, h: 20 }
+    ],
+    movingPlatforms: [
+      { x: 650, y: 460, w: 100, h: 16, startX: 650, endX: 750, startY: 460, endY: 460, speed: 1.8, dir: 1, type: 'h' },
+      { x: 1350, y: 350, w: 100, h: 16, startX: 1350, endX: 1350, startY: 300, endY: 500, speed: 2.2, dir: 1, type: 'v' }
+    ],
+    hazards: [
+      { x: 380, y: 520, w: 70, h: 20 },
+      { x: 950, y: 520, w: 90, h: 20 }
+    ],
+    enemies: [
+      { x: 880, y: 385, w: 30, h: 35, startX: 850, endX: 960, speed: 1.5, dir: 1 },
+      { x: 1600, y: 505, w: 30, h: 35, startX: 1500, endX: 1750, speed: 2.0, dir: 1 }
+    ],
+    collectibles: [
+      { x: 310, y: 360, w: 16, h: 16, collected: false },
+      { x: 540, y: 260, w: 16, h: 16, collected: false },
+      { x: 700, y: 410, w: 16, h: 16, collected: false },
+      { x: 1150, y: 270, w: 16, h: 16, collected: false },
+      { x: 1620, y: 370, w: 16, h: 16, collected: false },
+      { x: 1850, y: 260, w: 16, h: 16, collected: false }
+    ],
+    checkpoints: [
+      { x: 1130, y: 465, w: 30, h: 75, activated: false }
+    ],
+    portal: { x: 2050, y: 130, w: 45, h: 80 }
+  },
+  {
+    width: 2500,
+    startPos: { x: 100, y: 400 },
+    platforms: [
+      { x: 0, y: 540, w: 400, h: 60 },
+      { x: 500, y: 460, w: 250, h: 30 },
+      { x: 850, y: 540, w: 450, h: 60 },
+      { x: 950, y: 380, w: 180, h: 20 },
+      { x: 1400, y: 450, w: 350, h: 30 },
+      { x: 1500, y: 290, w: 160, h: 20 },
+      { x: 1900, y: 540, w: 600, h: 60 },
+      { x: 2000, y: 410, w: 150, h: 20 },
+      { x: 2200, y: 290, w: 180, h: 20 }
+    ],
+    movingPlatforms: [
+      { x: 400, y: 480, w: 90, h: 16, startX: 400, endX: 500, startY: 350, endY: 520, speed: 2.5, dir: 1, type: 'v' },
+      { x: 750, y: 460, w: 100, h: 16, startX: 750, endX: 850, startY: 460, endY: 460, speed: 2.5, dir: 1, type: 'h' },
+      { x: 1300, y: 450, w: 90, h: 16, startX: 1300, endX: 1400, startY: 450, endY: 450, speed: 3.0, dir: -1, type: 'h' },
+      { x: 1770, y: 480, w: 100, h: 16, startX: 1770, endX: 1880, startY: 320, endY: 530, speed: 2.8, dir: 1, type: 'v' }
+    ],
+    hazards: [
+      { x: 150, y: 520, w: 120, h: 20 },
+      { x: 550, y: 440, w: 80, h: 20 },
+      { x: 1000, y: 520, w: 150, h: 20 },
+      { x: 1520, y: 430, w: 100, h: 20 }
+    ],
+    enemies: [
+      { x: 550, y: 425, w: 30, h: 35, startX: 510, endX: 720, speed: 2.2, dir: 1 },
+      { x: 1000, y: 345, w: 30, h: 35, startX: 960, endX: 1100, speed: 2.5, dir: -1 },
+      { x: 2020, y: 375, w: 30, h: 35, startX: 2000, endX: 2130, speed: 2.2, dir: 1 }
+    ],
+    collectibles: [
+      { x: 200, y: 450, w: 16, h: 16, collected: false },
+      { x: 440, y: 290, w: 16, h: 16, collected: false },
+      { x: 620, y: 380, w: 16, h: 16, collected: false },
+      { x: 1040, y: 320, w: 16, h: 16, collected: false },
+      { x: 1350, y: 380, w: 16, h: 16, collected: false },
+      { x: 1580, y: 230, w: 16, h: 16, collected: false },
+      { x: 2070, y: 350, w: 16, h: 16, collected: false },
+      { x: 2280, y: 230, w: 16, h: 16, collected: false }
+    ],
+    checkpoints: [
+      { x: 1250, y: 465, w: 30, h: 75, activated: false }
+    ],
+    portal: { x: 2300, y: 210, w: 45, h: 80 }
+  },
+  {
+    width: 2800,
+    startPos: { x: 100, y: 400 },
+    platforms: [
+      { x: 0, y: 540, w: 350, h: 60 },
+      { x: 450, y: 440, w: 160, h: 30 },
+      { x: 720, y: 340, w: 160, h: 30 },
+      { x: 1000, y: 250, w: 220, h: 30 },
+      { x: 1320, y: 420, w: 260, h: 30 },
+      { x: 1700, y: 540, w: 300, h: 60 },
+      { x: 2120, y: 410, w: 220, h: 30 },
+      { x: 2450, y: 280, w: 300, h: 60 }
+    ],
+    movingPlatforms: [
+      { x: 350, y: 500, w: 85, h: 16, startX: 350, endX: 350, startY: 420, endY: 540, speed: 3.2, dir: 1, type: 'v' },
+      { x: 620, y: 390, w: 85, h: 16, startX: 620, endX: 710, startY: 390, endY: 390, speed: 3.5, dir: 1, type: 'h' },
+      { x: 890, y: 290, w: 85, h: 16, startX: 890, endX: 990, startY: 290, endY: 290, speed: 3.8, dir: -1, type: 'h' },
+      { x: 1230, y: 270, w: 85, h: 16, startX: 1230, endX: 1230, startY: 250, endY: 460, speed: 4.2, dir: 1, type: 'v' },
+      { x: 1590, y: 480, w: 90, h: 16, startX: 1590, endX: 1690, startY: 420, endY: 540, speed: 3.5, dir: -1, type: 'v' },
+      { x: 2010, y: 460, w: 95, h: 16, startX: 2010, endX: 2110, startY: 460, endY: 460, speed: 4.0, dir: 1, type: 'h' },
+      { x: 2350, y: 350, w: 90, h: 16, startX: 2350, endX: 2440, startY: 280, endY: 480, speed: 4.2, dir: -1, type: 'v' }
+    ],
+    hazards: [
+      { x: 100, y: 520, w: 100, h: 20 },
+      { x: 500, y: 420, w: 60, h: 20 },
+      { x: 770, y: 320, w: 60, h: 20 },
+      { x: 1060, y: 230, w: 100, h: 20 },
+      { x: 1380, y: 400, w: 120, h: 20 },
+      { x: 1780, y: 520, w: 140, h: 20 }
+    ],
+    enemies: [
+      { x: 1020, y: 215, w: 30, h: 35, startX: 1000, endX: 1200, speed: 3.5, dir: 1 },
+      { x: 1360, y: 385, w: 30, h: 35, startX: 1330, endX: 1560, speed: 4.0, dir: -1 },
+      { x: 1720, y: 505, w: 30, h: 35, startX: 1700, endX: 1820, speed: 3.8, dir: 1 },
+      { x: 2500, y: 245, w: 30, h: 35, startX: 2460, endX: 2700, speed: 4.5, dir: -1 }
+    ],
+    collectibles: [
+      { x: 390, y: 360, w: 16, h: 16, collected: false },
+      { x: 660, y: 290, w: 16, h: 16, collected: false },
+      { x: 930, y: 200, w: 16, h: 16, collected: false },
+      { x: 1100, y: 140, w: 16, h: 16, collected: false },
+      { x: 1450, y: 310, w: 16, h: 16, collected: false },
+      { x: 1640, y: 360, w: 16, h: 16, collected: false },
+      { x: 2050, y: 380, w: 16, h: 16, collected: false },
+      { x: 2220, y: 290, w: 16, h: 16, collected: false },
+      { x: 2390, y: 230, w: 16, h: 16, collected: false }
+    ],
+    checkpoints: [
+      { x: 1450, y: 345, w: 30, h: 75, activated: false }
+    ],
+    portal: { x: 2650, y: 200, w: 45, h: 80 }
+  }
+];
+
+let activeLevel = null;
+
+// --- INITIALIZATION GEARS ---
+function loadLevel(idx) {
+  currentLevelIdx = idx;
+  const source = levelTemplates[idx];
+
+  // Clean allocations to isolate template states
+  activeLevel = {
+    width: source.width,
+    platforms: source.platforms.map(p => ({ ...p })),
+    movingPlatforms: source.movingPlatforms.map(mp => ({ ...mp })),
+    hazards: source.hazards.map(h => ({ ...h })),
+    enemies: source.enemies.map(e => ({ ...e, initialX: e.x })),
+    collectibles: source.collectibles.map(c => {
+      // Retain items grabbed previously if recovering at a checkpoint inside the same sector loop
+      let match = false;
+      if (lastCheckpoint && lastCheckpoint.levelIdx === idx && lastCheckpoint.collectedTracker) {
+        match = lastCheckpoint.collectedTracker.includes(`${c.x}_${c.y}`);
+      }
+      return { ...c, collected: match };
+    }),
+    checkpoints: source.checkpoints.map(cp => {
+      let isSet = false;
+      if (lastCheckpoint && lastCheckpoint.levelIdx === idx && lastCheckpoint.cpX === cp.x) {
+        isSet = true;
+      }
+      return { ...cp, activated: isSet };
+    }),
+    portal: { ...source.portal }
+  };
+
+  // Entry Position resolution
+  if (lastCheckpoint && lastCheckpoint.levelIdx === idx) {
+    player.x = lastCheckpoint.x;
+    player.y = lastCheckpoint.y;
+  } else {
+    player.x = source.startPos.x;
+    player.y = source.startPos.y;
+  }
+
+  player.vx = 0;
+  player.vy = 0;
+  player.grounded = false;
+  player.invulnerableFrames = 40; // Entry phase grace frames
+  particles = [];
+}
+
+// --- INTERACTION HOOKS ---
+function pressStart() {
+  audioCtx.resume();
+  score = 0;
+  player.health = player.maxHealth;
+  lastCheckpoint = null;
+  loadLevel(0);
+  gameState = 'PLAYING';
+  hideAllScreens();
+  updateUI();
+}
+
+function triggerNextLevel() {
+  loadLevel(currentLevelIdx + 1);
+  gameState = 'PLAYING';
+  hideAllScreens();
+  updateUI();
+}
+
+function respawnAtCheckpoint() {
+  player.health = player.maxHealth;
+  loadLevel(currentLevelIdx);
+  gameState = 'PLAYING';
+  hideAllScreens();
+  updateUI();
+}
+
+function resetWholeGame() {
+  pressStart();
+}
+
+function hideAllScreens() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+}
+
+function showScreen(id) {
+  hideAllScreens();
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function updateUI() {
+  document.getElementById('healthDisplay').innerHTML = 'HEALTH: ' + '❤️ '.repeat(player.health) + '🖤 '.repeat(player.maxHealth - player.health);
+  document.getElementById('scoreDisplay').innerText = `SCORE: ${String(score).padStart(4, '0')}`;
+  document.getElementById('levelDisplay').innerText = `SECTOR: ${currentLevelIdx + 1}`;
+}
+
+// --- PARTICLE SIMULATOR ---
+function spawnExplosion(x, y, color, count = 12) {
+  for (let i = 0; i < count; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let velocity = Math.random() * 4.5 + 1.5;
+    particles.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * velocity,
+      vy: Math.sin(angle) * velocity,
+      size: Math.random() * 4 + 2,
+      color: color,
+      life: Math.random() * 25 + 20
+    });
+  }
+}
+
+function spawnJumpTrail(x, y) {
+  for (let i = 0; i < 6; i++) {
+    particles.push({
+      x: x + (Math.random() - 0.5) * player.w,
+      y: y,
+      vx: (Math.random() - 0.5) * 2,
+      vy: -Math.random() * 1.5,
+      size: Math.random() * 3 + 1,
+      color: 'rgba(0, 255, 255, 0.6)',
+      life: Math.random() * 12 + 8
+    });
+  }
+}
+
+function runParticleSimulation() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    let p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+// --- COLLISION RESOLUTION LOGIC ---
+function intersects(r1, r2) {
+  return r1.x < r2.x + r2.w &&
+         r1.x + r1.w > r2.x &&
+         r1.y < r2.y + r2.h &&
+         r1.y + r1.h > r2.y;
+}
+
+function processDamageEvent() {
+  player.health--;
+  player.invulnerableFrames = 70;
+  playSound('hurt');
+  spawnExplosion(player.x + player.w/2, player.y + player.h/2, '#ff0055', 22);
+  updateUI();
+
+  if (player.health <= 0) {
+    gameState = 'GAME_OVER';
+    showScreen('gameOverScreen');
+  }
+}
+
+// --- COMPUTATION AND PHYSICS TICK ---
+function updatePhysics() {
+  if (gameState !== 'PLAYING') return;
+
+  // Horizontal acceleration processing
+  let moveLeft = keys.a;
+  let moveRight = keys.d;
+  let attemptJump = keys.w || keys.Space;
+
+  if (moveLeft) {
+    player.vx = -player.speed;
+    player.facing = 'left';
+  } else if (moveRight) {
+    player.vx = player.speed;
+    player.facing = 'right';
+  } else {
+    player.vx *= 0.78; // Friction deceleration coefficient
+    if (Math.abs(player.vx) < 0.1) player.vx = 0;
+  }
+
+  // Gravity integration
+  player.vy += 0.52; // Gravitational constant
+  if (player.vy > 13) player.vy = 13; // Terminal velocity configuration
+
+  // Jump tracking
+  if (attemptJump && player.grounded) {
+    player.vy = player.jumpForce;
+    player.grounded = false;
+    playSound('jump');
+    spawnJumpTrail(player.x + player.w/2, player.y + player.h);
+  }
+
+  player.grounded = false;
+
+  // Kinematic platforms synchronization
+  for (let mp of activeLevel.movingPlatforms) {
+    let dx = 0;
+    let dy = 0;
+
+    if (mp.type === 'h') {
+      let stepX = mp.x + mp.speed * mp.dir;
+      if (stepX >= mp.endX && mp.dir === 1) { stepX = mp.endX; mp.dir = -1; }
+      else if (stepX <= mp.startX && mp.dir === -1) { stepX = mp.startX; mp.dir = 1; }
+      dx = stepX - mp.x;
+      mp.x = stepX;
+    } else {
+      let stepY = mp.y + mp.speed * mp.dir;
+      if (stepY >= mp.endY && mp.dir === 1) { stepY = mp.endY; mp.dir = -1; }
+      else if (stepY <= mp.startY && mp.dir === -1) { stepY = mp.startY; mp.dir = 1; }
+      dy = stepY - mp.y;
+      mp.y = stepY;
+    }
+
+    // Carry rider momentum if aligned above top plane
+    if (player.y + player.h >= mp.y - 4 && player.y + player.h <= mp.y + 4 &&
+        player.x + player.w > mp.x && player.x < mp.x + mp.w && player.vy >= 0) {
+      player.x += dx;
+      player.y += dy;
+      player.grounded = true;
+      player.vy = 0;
+    }
+  }
+
+  // X Axis displacement & Static boundary check
+  player.x += player.vx;
+  if (player.x < 0) player.x = 0;
+  if (player.x + player.w > activeLevel.width) player.x = activeLevel.width - player.w;
+
+  for (let p of activeLevel.platforms) {
+    if (intersects(player, p)) {
+      if (player.vx > 0) player.x = p.x - player.w;
+      else if (player.vx < 0) player.x = p.x + p.w;
+      player.vx = 0;
+    }
+  }
+
+  // Y Axis displacement & Static platform collision evaluation
+  player.y += player.vy;
+  for (let p of activeLevel.platforms) {
+    if (intersects(player, p)) {
+      if (player.vy > 0) {
+        player.y = p.y - player.h;
+        player.vy = 0;
+        player.grounded = true;
+      } else if (player.vy < 0) {
+        player.y = p.y + p.h;
+        player.vy = 0;
+      }
+    }
+  }
+
+  // Secure alignment checks against platform clips on vertical drops
+  for (let mp of activeLevel.movingPlatforms) {
+    if (intersects(player, mp)) {
+      if (player.vy > 0) {
+        player.y = mp.y - player.h;
+        player.vy = 0;
+        player.grounded = true;
+      } else if (player.vy < 0) {
+        player.y = mp.y + mp.h;
+        player.vy = 0;
+      }
+    }
+  }
+
+  // Hazard intercept checks
+  if (player.invulnerableFrames === 0) {
+    for (let h of activeLevel.hazards) {
+      if (intersects(player, h)) {
+        processDamageEvent();
+        break;
+      }
+    }
+  }
+
+  // Opponent logic loop
+  for (let i = activeLevel.enemies.length - 1; i >= 0; i--) {
+    let e = activeLevel.enemies[i];
+    e.x += e.speed * e.dir;
+    if (e.dir === 1 && e.x >= e.endX) { e.x = e.endX; e.dir = -1; }
+    else if (e.dir === -1 && e.x <= e.startX) { e.x = e.startX; e.dir = 1; }
+
+    if (intersects(player, e)) {
+      // Evaluate stomp conditions
+      if (player.vy > 0 && player.y + player.h - player.vy <= e.y + 12) {
+        playSound('stomp');
+        player.vy = -8.5; // Stomp boost vector
+        spawnExplosion(e.x + e.w/2, e.y + e.h/2, '#00ffaa', 15);
+        activeLevel.enemies.splice(i, 1);
+        score += 150;
+        updateUI();
+      } else if (player.invulnerableFrames === 0) {
+        processDamageEvent();
+      }
+    }
+  }
+
+  // Collectible intercept assessment
+  for (let c of activeLevel.collectibles) {
+    if (!c.collected && intersects(player, c)) {
+      c.collected = true;
+      score += 50;
+      playSound('coin');
+      spawnExplosion(c.x + c.w/2, c.y + c.h/2, '#ffff00', 8);
+      updateUI();
+    }
+  }
+
+  // Checkpoint validation
+  for (let cp of activeLevel.checkpoints) {
+    if (!cp.activated && intersects(player, cp)) {
+      activeLevel.checkpoints.forEach(c => c.activated = false);
+      cp.activated = true;
+
+      // Save full string tracker values of acquired entities to block score double-dipping loops
+      let collectedLog = activeLevel.collectibles.filter(item => item.collected).map(item => `${item.x}_${item.y}`);
+
+      lastCheckpoint = {
+        levelIdx: currentLevelIdx,
+        x: cp.x + 2,
+        y: cp.y + 10,
+        cpX: cp.x,
+        collectedTracker: collectedLog
+      };
+      playSound('checkpoint');
+      spawnExplosion(cp.x + cp.w/2, cp.y + cp.h/2, '#00ffff', 15);
+    }
+  }
+
+  // Level Clear Gateway evaluation
+  if (intersects(player, activeLevel.portal)) {
+    playSound('win');
+    spawnExplosion(activeLevel.portal.x + activeLevel.portal.w/2, activeLevel.portal.y + activeLevel.portal.h/2, '#ff00ff', 35);
+
+    if (currentLevelIdx < levelTemplates.length - 1) {
+      gameState = 'LEVEL_COMPLETE';
+      showScreen('levelCompleteScreen');
+    } else {
+      gameState = 'GAME_WIN';
+      document.getElementById('finalScore').innerText = score;
+      showScreen('gameWinScreen');
+    }
+  }
+
+  // Void/Pit drop condition
+  if (player.y > 600) {
+    processDamageEvent();
+    if (player.health > 0) {
+      // Direct restoration to checkpoint or start coordinates to halt immediate re-death loops
+      if (lastCheckpoint && lastCheckpoint.levelIdx === currentLevelIdx) {
+        player.x = lastCheckpoint.x;
+        player.y = lastCheckpoint.y;
+      } else {
+        player.x = levelTemplates[currentLevelIdx].startPos.x;
+        player.y = levelTemplates[currentLevelIdx].startPos.y;
+      }
+      player.vx = 0;
+      player.vy = 0;
+    }
+  }
+
+  // Decay invul frames
+  if (player.invulnerableFrames > 0) player.invulnerableFrames--;
+
+  // Camera tracking computations (interpolated anchor logic)
+  let idealCamX = player.x - camera.width / 2 + player.w / 2;
+  let rightEdge = activeLevel.width - camera.width;
+  if (idealCamX < 0) idealCamX = 0;
+  if (idealCamX > rightEdge) idealCamX = rightEdge;
+  camera.x += (idealCamX - camera.x) * 0.12; // Camera dampening step
+}
+
+// --- RENDERING PIPELINE ---
+function renderGameGrid() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.translate(-Math.floor(camera.x), -Math.floor(camera.y));
+
+  // Visual Theme: Retro Synthwave Grid Backdrop lines
+  ctx.strokeStyle = '#121235';
+  ctx.lineWidth = 1;
+  let spacing = 50;
+  let leftBound = Math.floor(camera.x / spacing) * spacing;
+  for (let x = leftBound; x < leftBound + camera.width + spacing; x += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, camera.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y < camera.height; y += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(camera.x, y);
+    ctx.lineTo(camera.x + camera.width, y);
+    ctx.stroke();
+  }
+
+  // Draw Bottom Danger Line (Visual boundary representation)
+  ctx.strokeStyle = '#ff0055';
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = '#ff0055';
+  ctx.beginPath();
+  ctx.moveTo(camera.x, 592);
+  ctx.lineTo(camera.x + camera.width, 592);
+  ctx.stroke();
+  ctx.shadowBlur = 0; // Clear immediately for composite efficiency
+
+  // Static Platforms
+  for (let p of activeLevel.platforms) {
+    ctx.fillStyle = '#06133a';
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.strokeStyle = '#00aaff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p.x, p.y, p.w, p.h);
+  }
+
+  // Moving Platforms
+  for (let mp of activeLevel.movingPlatforms) {
+    ctx.fillStyle = '#260438';
+    ctx.fillRect(mp.x, mp.y, mp.w, mp.h);
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(mp.x, mp.y, mp.w, mp.h);
+  }
+
+  // Hazards (Procedural Neon Spikes)
+  for (let h of activeLevel.hazards) {
+    ctx.fillStyle = '#2d0016';
+    ctx.fillRect(h.x, h.y, h.w, h.h);
+
+    ctx.strokeStyle = '#ff0055';
+    ctx.lineWidth = 1.5;
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#ff0055';
+
+    let spikeUnit = 10;
+    let iterations = h.w / spikeUnit;
+    ctx.beginPath();
+    for (let i = 0; i < iterations; i++) {
+      ctx.moveTo(h.x + i * spikeUnit, h.y + h.h);
+      ctx.lineTo(h.x + i * spikeUnit + spikeUnit/2, h.y);
+      ctx.lineTo(h.x + (i + 1) * spikeUnit, h.y + h.h);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // Checkpoint Nodes
+  for (let cp of activeLevel.checkpoints) {
+    ctx.strokeStyle = cp.activated ? '#00ffff' : '#444477';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = cp.activated ? 'rgba(0, 255, 255, 0.08)' : 'rgba(68, 68, 119, 0.05)';
+    ctx.fillRect(cp.x, cp.y, cp.w, cp.h);
+    ctx.strokeRect(cp.x, cp.y, cp.w, cp.h);
+
+    // Indicator Core Glow
+    ctx.fillStyle = cp.activated ? '#00ffff' : '#444477';
+    ctx.shadowBlur = cp.activated ? 8 : 0;
+    ctx.shadowColor = '#00ffff';
+    ctx.beginPath();
+    ctx.arc(cp.x + cp.w/2, cp.y + 18, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Core internal schematic lines
+    ctx.beginPath();
+    ctx.moveTo(cp.x + 6, cp.y + 40);
+    ctx.lineTo(cp.x + cp.w - 6, cp.y + 40);
+    ctx.stroke();
+  }
+
+  // Matrices Collectibles (Bobbing and spinning glow elements)
+  for (let c of activeLevel.collectibles) {
+    if (!c.collected) {
+      ctx.save();
+      ctx.translate(c.x + c.w/2, c.y + c.h/2);
+      let verticalOffset = Math.sin(Date.now() * 0.006 + c.x) * 4;
+      ctx.translate(0, verticalOffset);
+      ctx.rotate(Date.now() * 0.0025);
+
+      ctx.fillStyle = '#ffff00';
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#ffff00';
+      ctx.fillRect(-c.w/2, -c.h/2, c.w, c.h);
+      ctx.restore();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // Enemy Nodes
+  for (let e of activeLevel.enemies) {
+    ctx.fillStyle = '#022415';
+    ctx.fillRect(e.x, e.y, e.w, e.h);
+    ctx.strokeStyle = '#00ffaa';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(e.x, e.y, e.w, e.h);
+
+    // Optic sensor elements (Shows patrolling vector)
+    ctx.fillStyle = '#ff0055';
+    let trackingSightX = e.dir === 1 ? e.x + e.w - 9 : e.x + 3;
+    ctx.fillRect(trackingSightX, e.y + 8, 6, 4);
+  }
+
+  // Neon Exit Gateway
+  let portal = activeLevel.portal;
+  let pulseCycle = 0.6 + Math.sin(Date.now() * 0.008) * 0.35;
+  ctx.fillStyle = `rgba(255, 0, 255, ${pulseCycle})`;
+  ctx.strokeStyle = '#ff00ff';
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = '#ff00ff';
+  ctx.fillRect(portal.x, portal.y, portal.w, portal.h);
+  ctx.strokeRect(portal.x, portal.y, portal.w, portal.h);
+  ctx.shadowBlur = 0;
+
+  // Player Character Rendering Matrix
+  if (player.invulnerableFrames === 0 || Math.floor(player.invulnerableFrames / 4) % 2 === 0) {
+    ctx.fillStyle = '#021d24';
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+    ctx.strokeStyle = '#00ffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(player.x, player.y, player.w, player.h);
+
+    // Cyber visor component drawing
+    ctx.fillStyle = '#ff00ff';
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#ff00ff';
+    let visorTargetX = player.facing === 'right' ? player.x + 11 : player.x + 1;
+    ctx.fillRect(visorTargetX, player.y + 6, 12, 5);
+    ctx.shadowBlur = 0;
+  }
+
+  // Active Particle Array Render Loop
+  for (let p of particles) {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.life / 35;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1.0; // Reset canvas alpha context transparency
+
+  ctx.restore();
+}
+
+// --- MAIN RUNTIME LOOPER CORE ---
+function runEngineStep() {
+  updatePhysics();
+  runParticleSimulation();
+
+  if (activeLevel) {
+    renderGameGrid();
+  }
+
+  requestAnimationFrame(runEngineStep);
+}
+
+// Fire runtime environment configuration on compilation complete
+runEngineStep();
+</script>
+
+</body>
+</html>
